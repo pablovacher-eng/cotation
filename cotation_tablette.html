@@ -1433,9 +1433,10 @@ function renderCotation() {
 // POPUP DE CLASSIFICATION
 // ══════════════════════════════════════════════════════════════════════
 
-const popup     = document.getElementById('word-popup');
-let   popTarget = null;   // span survolé actuellement
-let   hideTimer = null;
+const popup       = document.getElementById('word-popup');
+let   popTarget   = null;   // span survolé actuellement
+let   hideTimer   = null;
+let   rectSelActive = false; // sélection rectangulaire fluence (jamais active sur tablette)
 
 // Simple clic : efface l'annotation si présente
 // Double clic : pose/retire un marqueur temporel (1min → 2min → efface)
