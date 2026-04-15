@@ -1513,28 +1513,28 @@ popup.addEventListener('click', e => {
 
 function positionPopup(span, cx, cy) {
   popup.style.display = 'grid';
-  const pw  = popup.offsetWidth;
-  const ph  = popup.offsetHeight;
-  const vv  = window.visualViewport;
-  const vvW = vv ? vv.width  : window.innerWidth;
-  const vvH = vv ? vv.height : window.innerHeight;
+  const pw   = popup.offsetWidth;
+  const ph   = popup.offsetHeight;
+  const vv   = window.visualViewport;
+  // Sur iOS, position:fixed = repère layout viewport.
+  // touch.clientX et getBoundingClientRect = repère visual viewport.
+  // → il faut ajouter vv.offsetLeft/Top pour convertir visual → layout.
+  const offL = vv ? vv.offsetLeft : 0;
+  const offT = vv ? vv.offsetTop  : 0;
+  const vvW  = vv ? vv.width      : window.innerWidth;
+  const vvH  = vv ? vv.height     : window.innerHeight;
   let left, top;
   if (cx !== undefined) {
-    // Coordonnées touch : déjà dans le repère du viewport visuel
-    left = cx - pw / 2;
-    top  = cy - ph - 10;
-    if (top < 8) top = cy + 14;
+    left = offL + cx - pw / 2;
+    top  = offT + cy - ph - 10;
+    if (cy - ph - 10 < 8) top = offT + cy + 14;
   } else {
-    // Souris : convertir getBoundingClientRect → viewport visuel
-    const rect  = span.getBoundingClientRect();
-    const scale = vv ? vv.scale      : 1;
-    const offL  = vv ? vv.offsetLeft : 0;
-    const offT  = vv ? vv.offsetTop  : 0;
-    left = (rect.left + rect.width / 2 - offL) / scale - pw / 2;
-    top  = (rect.top  - offT) / scale - ph - 10;
+    const rect = span.getBoundingClientRect();
+    left = offL + rect.left + rect.width / 2 - pw / 2;
+    top  = offT + rect.top  - ph - 10;
   }
-  popup.style.left = Math.max(8, Math.min(left, vvW - pw - 8)) + 'px';
-  popup.style.top  = Math.max(8, Math.min(top,  vvH - ph - 8)) + 'px';
+  popup.style.left = Math.max(offL + 8, Math.min(left, offL + vvW - pw - 8)) + 'px';
+  popup.style.top  = Math.max(offT + 8, Math.min(top,  offT + vvH - ph - 8)) + 'px';
 }
 
 window.addEventListener('scroll', () => {
@@ -2064,26 +2064,25 @@ function onT2WordLeave() {
 function positionT2Popup(span, cx, cy) {
   const t2pop = document.getElementById('t2-popup');
   t2pop.style.display = 'grid';
-  const pw  = t2pop.offsetWidth;
-  const ph  = t2pop.offsetHeight;
-  const vv  = window.visualViewport;
-  const vvW = vv ? vv.width  : window.innerWidth;
-  const vvH = vv ? vv.height : window.innerHeight;
+  const pw   = t2pop.offsetWidth;
+  const ph   = t2pop.offsetHeight;
+  const vv   = window.visualViewport;
+  const offL = vv ? vv.offsetLeft : 0;
+  const offT = vv ? vv.offsetTop  : 0;
+  const vvW  = vv ? vv.width      : window.innerWidth;
+  const vvH  = vv ? vv.height     : window.innerHeight;
   let left, top;
   if (cx !== undefined) {
-    left = cx - pw / 2;
-    top  = cy - ph - 10;
-    if (top < 8) top = cy + 14;
+    left = offL + cx - pw / 2;
+    top  = offT + cy - ph - 10;
+    if (cy - ph - 10 < 8) top = offT + cy + 14;
   } else {
-    const rect  = span.getBoundingClientRect();
-    const scale = vv ? vv.scale      : 1;
-    const offL  = vv ? vv.offsetLeft : 0;
-    const offT  = vv ? vv.offsetTop  : 0;
-    left = (rect.left + rect.width / 2 - offL) / scale - pw / 2;
-    top  = (rect.top  - offT) / scale - ph - 10;
+    const rect = span.getBoundingClientRect();
+    left = offL + rect.left + rect.width / 2 - pw / 2;
+    top  = offT + rect.top  - ph - 10;
   }
-  t2pop.style.left = Math.max(8, Math.min(left, vvW - pw - 8)) + 'px';
-  t2pop.style.top  = Math.max(8, Math.min(top,  vvH - ph - 8)) + 'px';
+  t2pop.style.left = Math.max(offL + 8, Math.min(left, offL + vvW - pw - 8)) + 'px';
+  t2pop.style.top  = Math.max(offT + 8, Math.min(top,  offT + vvH - ph - 8)) + 'px';
 }
 
 const t2Popup = document.getElementById('t2-popup');
