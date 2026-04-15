@@ -255,7 +255,7 @@
 
     /* Clickable words */
     .word {
-      display: inline;
+      display: inline-block;
       cursor: pointer;
       border-radius: 3px;
       padding: 1px 3px;
@@ -1523,6 +1523,50 @@ function positionPopup(span) {
 window.addEventListener('scroll', () => {
   if (popup.style.display !== 'none' && popTarget) positionPopup(popTarget);
 }, { passive: true });
+
+// ── Support tactile (iPad / tablettes) ──────────────────────────
+let _fluenceTapTime = 0;
+let _fluenceTapTarget = null;
+
+document.addEventListener('touchstart', e => {
+  const word = e.target.closest('.word');
+  // Tap sur un mot
+  if (word) {
+    e.preventDefault(); // évite le délai 300 ms de Safari
+    if (rectSelActive) return;
+
+    const idx  = parseInt(word.dataset.tokenIndex, 10);
+    const now  = Date.now();
+    const dbl  = (now - _fluenceTapTime < 300) && _fluenceTapTarget === word;
+    _fluenceTapTime   = now;
+    _fluenceTapTarget = word;
+
+    if (dbl) {
+      // Double-tap → marqueur temporel (même logique que double-clic souris)
+      popup.style.display = 'none';
+      handleDoubleClick(word, idx);
+      return;
+    }
+
+    if (popup.style.display !== 'none' && popTarget === word) {
+      // Re-tap sur le même mot → effacer annotation + fermer popup
+      if (wordTokens[idx].type !== null) markWord(word, idx, null);
+      popup.style.display = 'none';
+      popTarget = null;
+    } else {
+      // Tap sur un nouveau mot → ouvrir popup
+      clearTimeout(hideTimer);
+      popTarget = word;
+      positionPopup(word);
+      popup.style.display = 'grid';
+    }
+    return;
+  }
+  // Tap en dehors du popup → fermer
+  if (!popup.contains(e.target)) {
+    popup.style.display = 'none';
+  }
+}, { passive: false });
 
 function markWord(span, idx, type) {
   wordTokens[idx].type = type;
