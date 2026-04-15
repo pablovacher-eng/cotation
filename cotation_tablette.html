@@ -335,6 +335,7 @@
     #word-popup .pop-erreur { background: #fadbd8; color: #c0392b; }
     #word-popup .pop-oubli  { background: #fdebd0; color: #d35400; }
     #word-popup .pop-auto   { background: #d5f5e3; color: #1e8449; }
+    #word-popup .pop-clear  { background: #ecf0f1; color: #7f8c8d; }
 
     /* Absolute line counters (appended to .text-wrapper by JS) */
     .line-counter {
@@ -1026,6 +1027,7 @@
   <button class="pop-auto"   data-type="auto">Auto-correction</button>
   <button class="pop-erreur" data-type="erreur">Erreur</button>
   <button class="pop-oubli"  data-type="oubli">Oubli</button>
+  <button class="pop-clear">Effacer</button>
 </div>
 
 <!-- Popup de classification — EVAL2M -->
@@ -1501,10 +1503,11 @@ popup.addEventListener('mouseleave', () => {
 });
 
 popup.addEventListener('click', e => {
-  const btn = e.target.closest('button[data-type]');
+  const btn = e.target.closest('button');
   if (!btn || !popTarget) return;
-  const idx = parseInt(popTarget.dataset.tokenIndex, 10);
-  markWord(popTarget, idx, btn.dataset.type);
+  const idx  = parseInt(popTarget.dataset.tokenIndex, 10);
+  const type = btn.classList.contains('pop-clear') ? null : btn.dataset.type;
+  markWord(popTarget, idx, type);
   popup.style.display = 'none';
 });
 
