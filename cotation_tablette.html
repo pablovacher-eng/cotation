@@ -1511,17 +1511,30 @@ popup.addEventListener('click', e => {
   popup.style.display = 'none';
 });
 
-function positionPopup(span) {
-  const rect = span.getBoundingClientRect();
+function positionPopup(span, cx, cy) {
   popup.style.display = 'grid';
-  const pw = popup.offsetWidth;
-  const ph = popup.offsetHeight;
-  let left = rect.left + rect.width / 2 - pw / 2;
-  let top  = rect.top  - ph - 10;
-  left = Math.max(8, Math.min(left, window.innerWidth  - pw - 8));
-  top  = Math.max(8, Math.min(top,  window.innerHeight - ph - 8));
-  popup.style.left = left + 'px';
-  popup.style.top  = top  + 'px';
+  const pw  = popup.offsetWidth;
+  const ph  = popup.offsetHeight;
+  const vv  = window.visualViewport;
+  const vvW = vv ? vv.width  : window.innerWidth;
+  const vvH = vv ? vv.height : window.innerHeight;
+  let left, top;
+  if (cx !== undefined) {
+    // Coordonnées touch : déjà dans le repère du viewport visuel
+    left = cx - pw / 2;
+    top  = cy - ph - 10;
+    if (top < 8) top = cy + 14;
+  } else {
+    // Souris : convertir getBoundingClientRect → viewport visuel
+    const rect  = span.getBoundingClientRect();
+    const scale = vv ? vv.scale      : 1;
+    const offL  = vv ? vv.offsetLeft : 0;
+    const offT  = vv ? vv.offsetTop  : 0;
+    left = (rect.left + rect.width / 2 - offL) / scale - pw / 2;
+    top  = (rect.top  - offT) / scale - ph - 10;
+  }
+  popup.style.left = Math.max(8, Math.min(left, vvW - pw - 8)) + 'px';
+  popup.style.top  = Math.max(8, Math.min(top,  vvH - ph - 8)) + 'px';
 }
 
 window.addEventListener('scroll', () => {
@@ -1531,46 +1544,83 @@ window.addEventListener('scroll', () => {
 // ── Support tactile (iPad / tablettes) ──────────────────────────
 let _fluenceTapTime = 0;
 let _fluenceTapTarget = null;
+let _t2TapTime = 0;
+let _t2TapTarget = null;
 
 document.addEventListener('touchstart', e => {
-  const word = e.target.closest('.word');
-  // Tap sur un mot
-  if (word) {
-    e.preventDefault(); // évite le délai 300 ms de Safari
+  const fluenceWord = e.target.closest('.word');
+  const t2Word      = e.target.closest('.t2-word');
+  const t2popEl     = document.getElementById('t2-popup');
+
+  // ── Test de Fluence ─────────────────────────────────────────
+  if (fluenceWord) {
+    e.preventDefault();
     if (rectSelActive) return;
-
-    const idx  = parseInt(word.dataset.tokenIndex, 10);
-    const now  = Date.now();
-    const dbl  = (now - _fluenceTapTime < 300) && _fluenceTapTarget === word;
+    const cx  = e.touches[0].clientX;
+    const cy  = e.touches[0].clientY;
+    const idx = parseInt(fluenceWord.dataset.tokenIndex, 10);
+    const now = Date.now();
+    const dbl = (now - _fluenceTapTime < 300) && _fluenceTapTarget === fluenceWord;
     _fluenceTapTime   = now;
-    _fluenceTapTarget = word;
-
+    _fluenceTapTarget = fluenceWord;
     if (dbl) {
-      // Double-tap → marqueur temporel (même logique que double-clic souris)
       popup.style.display = 'none';
-      handleDoubleClick(word, idx);
+      handleDoubleClick(fluenceWord, idx);
       return;
     }
-
-    if (popup.style.display !== 'none' && popTarget === word) {
-      // Re-tap sur le même mot → effacer annotation + fermer popup
-      if (wordTokens[idx].type !== null) markWord(word, idx, null);
+    if (popup.style.display !== 'none' && popTarget === fluenceWord) {
+      if (wordTokens[idx].type !== null) markWord(fluenceWord, idx, null);
       popup.style.display = 'none';
       popTarget = null;
     } else {
-      // Tap sur un nouveau mot → ouvrir popup
       clearTimeout(hideTimer);
-      popTarget = word;
-      positionPopup(word);
-      popup.style.display = 'grid';
+      popTarget = fluenceWord;
+      positionPopup(fluenceWord, cx, cy);
     }
     return;
   }
-  // Tap en dehors du popup → fermer
-  if (!popup.contains(e.target)) {
-    popup.style.display = 'none';
+
+  // ── EVAL2M ──────────────────────────────────────────────────
+  if (t2Word) {
+    e.preventDefault();
+    if (t2RectActive) return;
+    if (t2Word.classList.contains('not-reached')) return;
+    const cx  = e.touches[0].clientX;
+    const cy  = e.touches[0].clientY;
+    const idx = parseInt(t2Word.dataset.t2Index, 10);
+    const now = Date.now();
+    const dbl = (now - _t2TapTime < 300) && _t2TapTarget === t2Word;
+    _t2TapTime   = now;
+    _t2TapTarget = t2Word;
+    if (dbl) {
+      t2popEl.style.display = 'none';
+      handleT2DMLClick(t2Word, idx);
+      return;
+    }
+    if (t2popEl.style.display !== 'none' && t2PopTarget === t2Word) {
+      if (t2WordStates[idx] && t2WordStates[idx].type !== null) setT2WordType(t2Word, idx, null);
+      t2popEl.style.display = 'none';
+      t2PopTarget = null;
+    } else {
+      clearTimeout(t2HideTimer);
+      t2PopTarget = t2Word;
+      positionT2Popup(t2Word, cx, cy);
+    }
+    return;
   }
+
+  // ── Fermer les popups si tap en dehors ──────────────────────
+  if (!popup.contains(e.target))   popup.style.display = 'none';
+  if (!t2popEl.contains(e.target)) t2popEl.style.display = 'none';
 }, { passive: false });
+
+// Repositionner les popups lors d'un zoom/scroll du viewport visuel (iPad)
+if (window.visualViewport) {
+  const _reposFluence = () => { if (popup.style.display !== 'none' && popTarget) positionPopup(popTarget); };
+  const _reposT2      = () => { const p = document.getElementById('t2-popup'); if (p.style.display !== 'none' && t2PopTarget) positionT2Popup(t2PopTarget); };
+  window.visualViewport.addEventListener('resize', () => { _reposFluence(); _reposT2(); });
+  window.visualViewport.addEventListener('scroll', () => { _reposFluence(); _reposT2(); });
+}
 
 function markWord(span, idx, type) {
   wordTokens[idx].type = type;
@@ -2011,18 +2061,29 @@ function onT2WordLeave() {
   t2HideTimer = setTimeout(() => { document.getElementById('t2-popup').style.display = 'none'; }, 180);
 }
 
-function positionT2Popup(span) {
+function positionT2Popup(span, cx, cy) {
   const t2pop = document.getElementById('t2-popup');
   t2pop.style.display = 'grid';
-  const rect = span.getBoundingClientRect();
-  const pw   = t2pop.offsetWidth;
-  const ph   = t2pop.offsetHeight;
-  let left = rect.left + rect.width / 2 - pw / 2;
-  let top  = rect.top  - ph - 10;
-  left = Math.max(8, Math.min(left, window.innerWidth  - pw - 8));
-  top  = Math.max(8, Math.min(top,  window.innerHeight - ph - 8));
-  t2pop.style.left = left + 'px';
-  t2pop.style.top  = top  + 'px';
+  const pw  = t2pop.offsetWidth;
+  const ph  = t2pop.offsetHeight;
+  const vv  = window.visualViewport;
+  const vvW = vv ? vv.width  : window.innerWidth;
+  const vvH = vv ? vv.height : window.innerHeight;
+  let left, top;
+  if (cx !== undefined) {
+    left = cx - pw / 2;
+    top  = cy - ph - 10;
+    if (top < 8) top = cy + 14;
+  } else {
+    const rect  = span.getBoundingClientRect();
+    const scale = vv ? vv.scale      : 1;
+    const offL  = vv ? vv.offsetLeft : 0;
+    const offT  = vv ? vv.offsetTop  : 0;
+    left = (rect.left + rect.width / 2 - offL) / scale - pw / 2;
+    top  = (rect.top  - offT) / scale - ph - 10;
+  }
+  t2pop.style.left = Math.max(8, Math.min(left, vvW - pw - 8)) + 'px';
+  t2pop.style.top  = Math.max(8, Math.min(top,  vvH - ph - 8)) + 'px';
 }
 
 const t2Popup = document.getElementById('t2-popup');
