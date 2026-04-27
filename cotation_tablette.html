@@ -796,6 +796,89 @@
       justify-content: space-between;
     }
 
+    /* ══ RANDOMISATION ══════════════════════════════════════════════ */
+
+    .token-banner {
+      background: #fff8e1;
+      border: 1px solid #f9a825;
+      border-radius: 8px;
+      padding: 12px 16px;
+      margin-bottom: 20px;
+      font-size: 0.88em;
+      color: #7d5a00;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .token-banner-text { flex: 1; min-width: 180px; }
+    .token-input-row { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+    .token-input-row input {
+      flex: 1; min-width: 200px;
+      padding: 7px 10px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      font-size: 0.9em;
+      font-family: monospace;
+    }
+    .btn-token-save {
+      background: #f9a825; color: #fff; border: none;
+      padding: 7px 14px; border-radius: 5px;
+      font-size: 0.88em; font-weight: 600; cursor: pointer;
+    }
+    .btn-token-save:hover { background: #e65100; }
+
+    .rand-banner {
+      background: #eaf4fb;
+      border: 1.5px solid #3498db;
+      border-radius: 8px;
+      padding: 12px 16px;
+      margin-top: 10px;
+      font-size: 0.9em;
+    }
+    .rand-banner.offline { background: #fff8e1; border-color: #f9a825; }
+    .rand-num { color: #555; font-size: 0.85em; margin-bottom: 3px; }
+    .rand-ordre { color: #1a252f; font-size: 1em; }
+    .rand-warn { color: #c0392b; font-weight: 600; }
+
+    .admin-toggle {
+      background: none; border: none; color: #aaa;
+      font-size: 0.78em; cursor: pointer; padding: 0;
+      margin-top: 18px; text-decoration: underline;
+      display: block;
+    }
+    .admin-toggle:hover { color: #555; }
+
+    .admin-panel {
+      background: #f8f9fa;
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      padding: 16px 20px;
+      margin-top: 12px;
+    }
+    .admin-panel h3 { font-size: 0.85em; color: #555; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .admin-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; font-size: 0.88em; }
+    .admin-row label { width: 40px; font-weight: 700; color: #2c3e50; }
+    .admin-row input[type="number"] {
+      width: 60px; padding: 4px 8px;
+      border: 1px solid #ccc; border-radius: 4px;
+      font-size: 0.9em; text-align: center;
+    }
+    .btn-admin-save {
+      background: #2c3e50; color: white; border: none;
+      padding: 7px 16px; border-radius: 5px;
+      font-size: 0.85em; font-weight: 600; cursor: pointer;
+      margin-top: 8px;
+    }
+    .btn-admin-save:hover { background: #1a252f; }
+    .admin-status { font-size: 0.8em; color: #27ae60; margin-top: 6px; }
+    .btn-reset-token {
+      background: none; border: 1px solid #ccc; color: #888;
+      padding: 5px 10px; border-radius: 4px;
+      font-size: 0.78em; cursor: pointer; margin-top: 10px;
+    }
+    .btn-reset-token:hover { border-color: #c0392b; color: #c0392b; }
+
   </style>
 </head>
 <body>
@@ -808,6 +891,23 @@
     <div class="setup-card">
       <h1>Cotation — Nouvelle session</h1>
       <p class="setup-subtitle">Renseignez les informations de l'enfant avant de commencer.</p>
+
+      <!-- Bannière configuration token GitHub -->
+      <div id="token-banner" class="token-banner hidden">
+        <div class="token-banner-text">
+          <strong>Synchronisation désactivée</strong> — Collez votre token GitHub pour activer le suivi de la randomisation sur tous les appareils.
+          <div class="token-input-row">
+            <input type="password" id="token-input" placeholder="github_pat_…" autocomplete="off">
+            <button type="button" class="btn-token-save" onclick="saveGhToken()">Enregistrer</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Bannière hors-ligne -->
+      <div id="offline-banner" class="rand-banner offline hidden" style="margin-bottom:16px">
+        ⚠️ <strong>Hors ligne</strong> — Le compteur local est utilisé. Synchronisez dès que possible.
+      </div>
+
       <form id="setup-form" onsubmit="goToMain(event)">
         <div class="form-row">
           <div class="form-group">
@@ -848,6 +948,10 @@
             <input type="email" id="poppins-mail" placeholder="Ex : dupont@email.com" autocomplete="off">
           </div>
         </div>
+
+        <!-- Bandeau randomisation — apparaît quand une classe est sélectionnée -->
+        <div id="rand-banner" class="rand-banner hidden" style="margin-bottom:20px"></div>
+
         <div class="form-group" style="margin-top:4px">
           <label>Diagnostics</label>
           <div class="diag-grid">
@@ -862,6 +966,18 @@
         </div>
         <button type="submit" class="btn-start" style="margin-top:24px">Suivant →</button>
       </form>
+
+      <!-- Panneau admin randomisation -->
+      <button class="admin-toggle" onclick="toggleAdmin()">⚙ Gérer les compteurs de randomisation</button>
+      <div id="admin-panel" class="admin-panel hidden">
+        <h3>Compteurs par niveau (nombre d'enfants déjà testés)</h3>
+        <div id="admin-rows"></div>
+        <button class="btn-admin-save" onclick="saveAdminCounters()">Enregistrer les modifications</button>
+        <div id="admin-status" class="admin-status hidden"></div>
+        <br>
+        <button class="btn-reset-token" onclick="resetToken()">Reconfigurer le token GitHub</button>
+      </div>
+
     </div>
   </div>
 
@@ -1273,6 +1389,7 @@ function goToMain(e) {
     diagDyspraxie: document.getElementById('diag-dyspraxie').checked,
     diagTdah     : document.getElementById('diag-tdah').checked,
     diagAutres   : document.getElementById('diag-autres').checked ? document.getElementById('diag-autres-text').value.trim() : '',
+    randClasse   : RANDOMIZATION[document.getElementById('child-classe').value] ? document.getElementById('child-classe').value : null,
   };
 
   // Update persistent header
@@ -2467,8 +2584,203 @@ function exportXLSX() {
 
   const safeName = commonSession.childName.replace(/\s+/g, '_');
   XLSX.writeFile(wb, 'cotation_' + safeName + '_' + commonSession.date + '.xlsx');
+
+  // Incrémenter le compteur de randomisation après export réussi
+  if (commonSession.randClasse) {
+    incrementRandCounter(commonSession.randClasse);
+  }
 }
 
+
+// ══════════════════════════════════════════════════════════════════════
+// RANDOMISATION — LISTES PRÉ-GÉNÉRÉES (4 blocs de 6 + 1 extra par niveau)
+// Chaque bloc contient exactement 3 × AB et 3 × BA dans un ordre aléatoire.
+// ══════════════════════════════════════════════════════════════════════
+
+const RANDOMIZATION = {
+  // Bloc 1 (1-6) | Bloc 2 (7-12) | Bloc 3 (13-18) | Bloc 4 (19-24) | Extra (25)
+  CP:  ['AB','BA','AB','BA','BA','AB',  'BA','AB','BA','BA','AB','AB',  'AB','AB','BA','BA','AB','BA',  'BA','BA','AB','AB','BA','AB',  'AB'],
+  CE1: ['BA','AB','AB','BA','AB','BA',  'AB','BA','BA','AB','BA','AB',  'BA','BA','AB','BA','AB','AB',  'AB','AB','BA','AB','BA','BA',  'BA'],
+  CE2: ['BA','BA','BA','AB','AB','AB',  'AB','AB','AB','BA','BA','BA',  'BA','AB','BA','AB','AB','BA',  'AB','BA','AB','BA','AB','BA',  'AB'],
+  CM1: ['AB','BA','BA','BA','AB','AB',  'BA','AB','AB','AB','BA','BA',  'BA','BA','AB','AB','AB','BA',  'AB','AB','BA','BA','BA','AB',  'BA'],
+  CM2: ['AB','BA','BA','AB','AB','BA',  'BA','AB','BA','AB','BA','AB',  'BA','AB','AB','BA','AB','BA',  'AB','BA','AB','AB','BA','BA',  'AB'],
+};
+
+// ══════════════════════════════════════════════════════════════════════
+// RANDOMISATION — GITHUB API
+// ══════════════════════════════════════════════════════════════════════
+
+const GH_OWNER = 'pablovacher-eng';
+const GH_REPO  = 'fluency-texts';
+const GH_FILE  = 'randomisation-state.json';
+const GH_API   = 'https://api.github.com/repos/' + GH_OWNER + '/' + GH_REPO + '/contents/' + GH_FILE;
+
+let ghCounters = null;  // { CP: 0, CE1: 0, ... }
+let ghFileSha  = null;  // SHA du fichier sur GitHub, nécessaire pour le PUT
+let usingLocalFallback = false;
+
+function getToken() { return localStorage.getItem('fluence_gh_token') || ''; }
+
+function saveGhToken() {
+  const t = document.getElementById('token-input').value.trim();
+  if (!t) return;
+  localStorage.setItem('fluence_gh_token', t);
+  document.getElementById('token-input').value = '';
+  document.getElementById('token-banner').classList.add('hidden');
+  initRand();
+}
+
+function resetToken() {
+  localStorage.removeItem('fluence_gh_token');
+  document.getElementById('token-banner').classList.remove('hidden');
+  document.getElementById('admin-panel').classList.add('hidden');
+}
+
+async function fetchCountersFromGitHub() {
+  const token = getToken();
+  if (!token) return null;
+  try {
+    const r = await fetch(GH_API, {
+      headers: { Authorization: 'Bearer ' + token, Accept: 'application/vnd.github+json' }
+    });
+    if (!r.ok) return null;
+    const data = await r.json();
+    ghFileSha = data.sha;
+    return JSON.parse(atob(data.content.replace(/\n/g, '')));
+  } catch { return null; }
+}
+
+async function pushCountersToGitHub(counters) {
+  const token = getToken();
+  if (!token || !ghFileSha) return false;
+  try {
+    const content = btoa(JSON.stringify(counters) + '\n');
+    const r = await fetch(GH_API, {
+      method: 'PUT',
+      headers: {
+        Authorization: 'Bearer ' + token,
+        Accept: 'application/vnd.github+json',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ message: 'Update randomisation counters', content, sha: ghFileSha })
+    });
+    if (!r.ok) return false;
+    const data = await r.json();
+    ghFileSha = data.content.sha;
+    return true;
+  } catch { return false; }
+}
+
+function getLocalCounters() {
+  try {
+    const s = localStorage.getItem('fluence_rand_counters');
+    return s ? JSON.parse(s) : { CP: 0, CE1: 0, CE2: 0, CM1: 0, CM2: 0 };
+  } catch { return { CP: 0, CE1: 0, CE2: 0, CM1: 0, CM2: 0 }; }
+}
+
+function setLocalCounters(counters) {
+  localStorage.setItem('fluence_rand_counters', JSON.stringify(counters));
+}
+
+async function initRand() {
+  const token = getToken();
+  if (!token) {
+    document.getElementById('token-banner').classList.remove('hidden');
+    ghCounters = getLocalCounters();
+    usingLocalFallback = true;
+    document.getElementById('offline-banner').classList.remove('hidden');
+    return;
+  }
+
+  const remote = await fetchCountersFromGitHub();
+  if (remote) {
+    ghCounters = remote;
+    usingLocalFallback = false;
+    setLocalCounters(remote);
+    document.getElementById('offline-banner').classList.add('hidden');
+  } else {
+    ghCounters = getLocalCounters();
+    usingLocalFallback = true;
+    document.getElementById('offline-banner').classList.remove('hidden');
+  }
+  updateRandBanner();
+}
+
+function updateRandBanner() {
+  const classe = document.getElementById('child-classe').value;
+  const banner = document.getElementById('rand-banner');
+  if (!RANDOMIZATION[classe] || !ghCounters) {
+    banner.classList.add('hidden');
+    return;
+  }
+  const idx = ghCounters[classe] || 0;
+  if (idx >= 25) {
+    banner.innerHTML = '<span class="rand-warn">⚠️ Les 25 participants ' + classe + ' ont déjà été testés.</span>';
+    banner.classList.remove('hidden');
+    return;
+  }
+  const ordre  = RANDOMIZATION[classe][idx];
+  const isExtra = idx === 24;
+  const bloc   = isExtra ? 'Extra' : 'Bloc ' + (Math.floor(idx / 6) + 1);
+  const t1 = ordre === 'AB' ? '<strong>Texte A — Lisa</strong> puis <strong>Texte B — Tom</strong>'
+                             : '<strong>Texte B — Tom</strong> puis <strong>Texte A — Lisa</strong>';
+  banner.innerHTML =
+    '<div class="rand-num">Participant n°' + (idx + 1) + ' / 25 — ' + bloc + (usingLocalFallback ? ' <em>(local)</em>' : '') + '</div>' +
+    '<div class="rand-ordre">Ordre de passation : ' + t1 + '</div>';
+  banner.classList.remove('hidden');
+}
+
+async function incrementRandCounter(classe) {
+  if (!ghCounters || !RANDOMIZATION[classe]) return;
+  ghCounters[classe] = (ghCounters[classe] || 0) + 1;
+  setLocalCounters(ghCounters);
+  if (!usingLocalFallback) {
+    await pushCountersToGitHub(ghCounters);
+  }
+}
+
+// ══ Admin panel ══
+
+function toggleAdmin() {
+  const panel = document.getElementById('admin-panel');
+  const isHidden = panel.classList.toggle('hidden');
+  if (!isHidden) renderAdminRows();
+}
+
+function renderAdminRows() {
+  const container = document.getElementById('admin-rows');
+  container.innerHTML = Object.keys(RANDOMIZATION).map(niveau => {
+    const val = ghCounters ? (ghCounters[niveau] || 0) : 0;
+    return '<div class="admin-row"><label>' + niveau + '</label>' +
+      '<input type="number" id="admin-' + niveau + '" min="0" max="25" value="' + val + '">' +
+      '<span style="color:#888;font-size:0.82em">/ 25</span></div>';
+  }).join('');
+}
+
+async function saveAdminCounters() {
+  const updated = {};
+  Object.keys(RANDOMIZATION).forEach(n => {
+    updated[n] = parseInt(document.getElementById('admin-' + n).value, 10) || 0;
+  });
+  ghCounters = updated;
+  setLocalCounters(updated);
+  const status = document.getElementById('admin-status');
+  if (!usingLocalFallback) {
+    const ok = await pushCountersToGitHub(updated);
+    status.textContent = ok ? '✓ Sauvegardé sur GitHub' : '⚠️ Sauvegarde locale uniquement (GitHub inaccessible)';
+  } else {
+    status.textContent = '✓ Sauvegardé localement (sync GitHub désactivée)';
+  }
+  status.classList.remove('hidden');
+  setTimeout(() => status.classList.add('hidden'), 3000);
+  updateRandBanner();
+}
+
+// ══ Init au chargement ══
+document.addEventListener('DOMContentLoaded', () => {
+  initRand();
+  document.getElementById('child-classe').addEventListener('change', updateRandBanner);
+});
 
 
 </script>
