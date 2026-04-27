@@ -811,18 +811,18 @@
       <form id="setup-form" onsubmit="goToMain(event)">
         <div class="form-row">
           <div class="form-group">
-            <label for="session-date">Date</label>
-            <input type="text" id="session-date" placeholder="Ex : 14/04/2026" autocomplete="off" required>
+            <label for="identifiant">Identifiant</label>
+            <input type="text" id="identifiant" placeholder="Ex : 12345" autocomplete="off" required>
           </div>
           <div class="form-group">
-            <label for="child-name">Prénom de l'enfant</label>
-            <input type="text" id="child-name" placeholder="Ex : Léa" required autocomplete="off">
+            <label for="session-date">Date</label>
+            <input type="text" id="session-date" placeholder="Ex : 14/04/2026" autocomplete="off" required>
           </div>
         </div>
         <div class="form-row">
           <div class="form-group">
-            <label for="child-lastname">Nom de l'enfant</label>
-            <input type="text" id="child-lastname" placeholder="Ex : Dupont" autocomplete="off">
+            <label for="child-name">Prénom de l'enfant</label>
+            <input type="text" id="child-name" placeholder="Ex : Léa" autocomplete="off">
           </div>
           <div class="form-group">
             <label for="child-dob">Date de naissance</label>
@@ -832,7 +832,16 @@
         <div class="form-row">
           <div class="form-group">
             <label for="child-classe">Classe</label>
-            <input type="text" id="child-classe" placeholder="Ex : CE2, CM1…" autocomplete="off">
+            <select id="child-classe">
+              <option value="">— Non renseigné —</option>
+              <option value="Maternelle">Maternelle</option>
+              <option value="CP">CP</option>
+              <option value="CE1">CE1</option>
+              <option value="CE2">CE2</option>
+              <option value="CM1">CM1</option>
+              <option value="CM2">CM2</option>
+              <option value="Collège">Collège</option>
+            </select>
           </div>
           <div class="form-group">
             <label for="poppins-mail">Mail du compte Poppins</label>
@@ -1240,16 +1249,23 @@ function switchMainTab(name) {
 // ══════════════════════════════════════════════════════════════════════
 
 // Pre-fill date with today
+document.addEventListener('DOMContentLoaded', () => {
+  const today = new Date();
+  const dd = String(today.getDate()).padStart(2, '0');
+  const mm = String(today.getMonth() + 1).padStart(2, '0');
+  const yyyy = today.getFullYear();
+  document.getElementById('session-date').value = dd + '/' + mm + '/' + yyyy;
+});
 
 function goToMain(e) {
   e.preventDefault();
   commonSession = {
+    identifiant  : document.getElementById('identifiant').value.trim(),
     childName    : document.getElementById('child-name').value.trim(),
-    childLastname: document.getElementById('child-lastname').value.trim(),
     childDob     : document.getElementById('child-dob').value.trim(),
     poppinsMail  : document.getElementById('poppins-mail').value.trim(),
     date         : document.getElementById('session-date').value,
-    classe       : document.getElementById('child-classe').value.trim(),
+    classe       : document.getElementById('child-classe').value,
     diagDyslexie : document.getElementById('diag-dyslexie').checked,
     diagDysortho : document.getElementById('diag-dysortho').checked,
     diagDyscalc  : document.getElementById('diag-dyscalc').checked,
@@ -1273,7 +1289,7 @@ function goToMain(e) {
     commonSession.diagAutres    || '',
   ].filter(Boolean).join(', ');
   document.getElementById('main-meta').innerHTML =
-    '<strong>' + escHtml(commonSession.childName) + (commonSession.childLastname ? ' ' + escHtml(commonSession.childLastname) : '') + '</strong>' +
+    '<strong>' + escHtml(commonSession.childName || commonSession.identifiant) + '</strong>' +
     ' \u00a0\u00b7\u00a0 ' + dateStr +
     (commonSession.classe ? ' \u00a0\u00b7\u00a0 ' + escHtml(commonSession.classe) : '') +
     (diagList ? '<br>' + escHtml(diagList) : '');
@@ -1377,7 +1393,7 @@ function renderCotation() {
     session.diagAutres    || '',
   ].filter(Boolean).join(', ');
   document.getElementById('meta-info').innerHTML =
-    '<strong>' + escHtml(session.childName) + (session.childLastname ? ' ' + escHtml(session.childLastname) : '') + '</strong>' +
+    '<strong>' + escHtml(session.childName || session.identifiant) + '</strong>' +
     ' \u00a0\u00b7\u00a0 ' + dateStr +
     (session.classe ? ' \u00a0\u00b7\u00a0 ' + escHtml(session.classe) : '') +
     (sessDiagList ? '<br>' + escHtml(sessDiagList) : '');
@@ -1773,8 +1789,8 @@ function nouvelleSession() {
   t2ResultState.valid = true;
 
   // Reset form
+  document.getElementById('identifiant').value         = '';
   document.getElementById('child-name').value         = '';
-  document.getElementById('child-lastname').value     = '';
   document.getElementById('child-dob').value          = '';
   document.getElementById('session-date').value       = '';
   document.getElementById('child-classe').value       = '';
@@ -1929,7 +1945,7 @@ function renderT2Grid() {
     sess.diagAutres    || '',
   ].filter(Boolean).join(', ');
   document.getElementById('t2-meta-info').innerHTML =
-    '<strong>' + escHtml(sess.childName) + (sess.childLastname ? ' ' + escHtml(sess.childLastname) : '') + '</strong>' +
+    '<strong>' + escHtml(sess.childName || sess.identifiant) + '</strong>' +
     ' \u00a0\u00b7\u00a0 ' + dateStr +
     (sess.classe ? ' \u00a0\u00b7\u00a0 ' + escHtml(sess.classe) : '') +
     (t2DiagList ? '<br>' + escHtml(t2DiagList) : '');
@@ -2360,7 +2376,7 @@ function buildFluenceSheetData(key) {
   );
 
   const headers = [
-    'etat_passation', 'prenom_enfant', 'nom_enfant', 'date_naissance', 'classe', 'mail_poppins',
+    'etat_passation', 'identifiant', 'prenom_enfant', 'date_naissance', 'classe', 'mail_poppins',
     'dyslexie', 'dysortographie', 'dyscalculie', 'dysphasie', 'dyspraxie', 'tdah', 'autres_troubles',
     'date', 'texte',
     'total_mots', 'mots_lus', 'mots_non_lus', 'mots_corrects',
@@ -2370,7 +2386,7 @@ function buildFluenceSheetData(key) {
   ];
   const values = [
     res.valid ? 'valide' : 'invalide',
-    commonSession.childName, commonSession.childLastname || '', commonSession.childDob || '', commonSession.classe || '', commonSession.poppinsMail || '',
+    commonSession.identifiant || '', commonSession.childName || '', commonSession.childDob || '', commonSession.classe || '', commonSession.poppinsMail || '',
     commonSession.diagDyslexie  ? 1 : 0,
     commonSession.diagDysortho  ? 1 : 0,
     commonSession.diagDyscalc   ? 1 : 0,
@@ -2404,14 +2420,14 @@ function buildT2SheetData() {
   const obs     = (document.getElementById('t2-obs-cliniques') || {}).value || '';
 
   const headers = [
-    'etat_passation', 'prenom_enfant', 'nom_enfant', 'date_naissance', 'classe', 'mail_poppins', 'date',
+    'etat_passation', 'identifiant', 'prenom_enfant', 'date_naissance', 'classe', 'mail_poppins', 'date',
     'dyslexie', 'dysortographie', 'dyscalculie', 'dysphasie', 'dyspraxie', 'tdah', 'autres_troubles',
     'DML_numero', 'DML_mot', 'MO', 'NML', 'ME', 'NMCL', 'pct_corrects_lus',
     'nb_autocorrections', 'qualite_lecture', 'observations_cliniques',
   ];
   const values = [
     t2ResultState.valid ? 'valide' : 'invalide',
-    commonSession.childName, commonSession.childLastname || '', commonSession.childDob || '', commonSession.classe || '', commonSession.poppinsMail || '', commonSession.date,
+    commonSession.identifiant || '', commonSession.childName || '', commonSession.childDob || '', commonSession.classe || '', commonSession.poppinsMail || '', commonSession.date,
     commonSession.diagDyslexie  ? 1 : 0,
     commonSession.diagDysortho  ? 1 : 0,
     commonSession.diagDyscalc   ? 1 : 0,
