@@ -616,11 +616,11 @@
       border-radius: 10px;
       padding: 8px;
       display: grid;
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: 1fr;
       gap: 7px;
       box-shadow: 0 6px 20px rgba(0,0,0,0.28);
       pointer-events: auto;
-      width: 260px;
+      width: 160px;
     }
 
     #t2-popup::after {
@@ -648,8 +648,6 @@
     }
 
     #t2-popup button:hover { opacity: 0.8; }
-    #t2-popup .pop-auto   { background: #d5f5e3; color: #1e8449; }
-    #t2-popup .pop-erreur { background: #fadbd8; color: #c0392b; }
     #t2-popup .pop-oubli  { background: #fdebd0; color: #d35400; }
     #t2-popup .pop-clear  { background: #ecf0f1; color: #7f8c8d; }
 
@@ -1112,7 +1110,6 @@
           <button class="qualite-btn" data-qualite="hesitations_permanentes"  onclick="setT2Qualite(this)">Hésitations permanentes</button>
           <button class="qualite-btn" data-qualite="nombreuses_erreurs"       onclick="setT2Qualite(this)">Nombreuses erreurs</button>
         </div>
-        <div class="autocorr-display" style="margin-top:10px">Nb autocorrections : <strong id="t2-nb-auto">0</strong></div>
         <div style="margin-top:14px">
           <p style="font-size:0.78em;font-weight:700;text-transform:uppercase;letter-spacing:0.7px;color:#666;margin-bottom:6px">Observations cliniques</p>
           <textarea id="t2-obs-cliniques" rows="2" placeholder="Observations cliniques…" style="width:100%;padding:8px 10px;border:2px solid #ddd;border-radius:6px;font-size:0.9em;font-family:inherit;resize:vertical"></textarea>
@@ -1157,10 +1154,8 @@
 
 <!-- Popup de classification — EVAL2M -->
 <div id="t2-popup" style="display:none">
-  <button class="pop-auto"   data-type="auto">Auto-correction</button>
-  <button class="pop-erreur" data-type="erreur">Erreur</button>
-  <button class="pop-oubli"  data-type="oubli">Oubli</button>
   <button class="pop-clear">Effacer</button>
+  <button class="pop-oubli"  data-type="oubli">Oubli</button>
 </div>
 
 <script>/*! xlsx.js (C) 2013-present SheetJS -- http://sheetjs.com */
@@ -1731,11 +1726,11 @@ document.addEventListener('touchstart', e => {
       return;
     }
     if (t2popEl.style.display !== 'none' && t2PopTarget === t2Word) {
-      if (t2WordStates[idx] && t2WordStates[idx].type !== null) setT2WordType(t2Word, idx, null);
       t2popEl.style.display = 'none';
       t2PopTarget = null;
     } else {
       clearTimeout(t2HideTimer);
+      if (t2WordStates[idx].type === null) setT2WordType(t2Word, idx, 'erreur');
       t2PopTarget = t2Word;
       positionT2Popup(t2Word, cx, cy);
     }
@@ -1750,7 +1745,7 @@ document.addEventListener('touchstart', e => {
 // Repositionner les popups lors d'un zoom/scroll du viewport visuel (iPad)
 if (window.visualViewport) {
   const _reposFluence = () => { if (popup.style.display !== 'none' && popTarget) positionPopup(popTarget); };
-  const _reposT2      = () => { const p = document.getElementById('t2-popup'); if (p.style.display !== 'none' && t2PopTarget) positionT2Popup(t2PopTarget); };
+  const _reposT2      = () => { const p = document.getElementById('t2-popup'); if (p.style.display !== 'none') { p.style.display = 'none'; t2PopTarget = null; } };
   window.visualViewport.addEventListener('resize', () => { _reposFluence(); _reposT2(); });
   window.visualViewport.addEventListener('scroll', () => { _reposFluence(); _reposT2(); });
 }
@@ -2148,11 +2143,7 @@ function onT2WordClick(e) {
     handleT2DMLClick(span, idx);
   } else {
     t2ClickTimer = setTimeout(() => {
-      // Single click : clear annotation if already marked
-      if (t2WordStates[idx] && t2WordStates[idx].type !== null) {
-        setT2WordType(span, idx, null);
-        document.getElementById('t2-popup').style.display = 'none';
-      }
+      if (t2WordStates[idx].type === null) setT2WordType(span, idx, 'erreur');
     }, 220);
   }
 }
@@ -2233,7 +2224,7 @@ t2Popup.addEventListener('click', e => {
 });
 
 window.addEventListener('scroll', () => {
-  if (t2Popup.style.display !== 'none' && t2PopTarget) positionT2Popup(t2PopTarget);
+  if (t2Popup.style.display !== 'none') { t2Popup.style.display = 'none'; t2PopTarget = null; }
 }, { passive: true });
 
 function setT2WordType(span, idx, type) {
@@ -2316,8 +2307,6 @@ function updateT2Score() {
   document.getElementById('t2-score-me').textContent   = me;
   document.getElementById('t2-score-nmcl').textContent = nmcl !== null ? nmcl : '—';
   document.getElementById('t2-score-pct').textContent  = pct  !== null ? pct  : '—';
-
-  document.getElementById('t2-nb-auto').textContent = autoCount;
 }
 
 // ══════════════════════════════════════════════════════════════════════
