@@ -520,6 +520,8 @@
     .t2-word[data-type="oubli"]  { background:#fdebd0; color:#d35400; }
     .t2-word[data-type="auto"]   { background:#d5f5e3; color:#1e8449; }
     .t2-word[data-type="non_lu"] { background:#ecf0f1; color:#95a5a6; text-decoration:line-through; }
+    .t2-word.t2-blue-ul   { text-decoration: underline; text-decoration-color: #2980b9; text-decoration-thickness: 2px; text-underline-offset: 3px; }
+    .t2-word.t2-blue-box  { outline: 2px solid #2980b9; outline-offset: 2px; border-radius: 3px; }
 
     .t2-word[data-dml]       { outline: 2px solid #8e44ad; outline-offset:1px; border-radius:3px; }
     .t2-word[data-dml]::after { content:"2'"; font-size:0.62em; font-weight:700; vertical-align:super; margin-left:1px; color:#8e44ad; }
@@ -2065,6 +2067,9 @@ function renderT2Grid() {
   updateT2Score();
 }
 
+const T2_BLUE_UL  = new Set([0,22,44,66,88,110,132,154,175,190,205,220,235,250]);
+const T2_BLUE_BOX = new Set([174]);
+
 function buildT2Table(plancheIdx, rows) {
   const table = document.createElement('table');
   table.className = 't2-table';
@@ -2109,6 +2114,8 @@ function buildT2Table(plancheIdx, rows) {
       if (t2WordStates[wordIdx].type) span.dataset.type = t2WordStates[wordIdx].type;
       if (t2DML !== null && wordIdx === t2DML) span.dataset.dml = '1';
       if (t2DML !== null && wordIdx > t2DML)   span.classList.add('not-reached');
+      if (T2_BLUE_UL.has(wordIdx))  span.classList.add('t2-blue-ul');
+      if (T2_BLUE_BOX.has(wordIdx)) span.classList.add('t2-blue-box');
 
       tdWord.appendChild(span);
       tr.appendChild(tdNum);
