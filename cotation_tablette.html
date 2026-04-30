@@ -1305,10 +1305,13 @@ function goToMain(e) {
     commonSession.diagTdah      ? 'TDAH'            : '',
     commonSession.diagAutres    || '',
   ].filter(Boolean).join(', ');
+  const ordreLabel = commonSession.ordreTextes === 'AB' ? 'Ordre : A → B'
+                   : commonSession.ordreTextes === 'BA' ? 'Ordre : B → A' : '';
   document.getElementById('main-meta').innerHTML =
     '<strong>' + escHtml(commonSession.childName || commonSession.identifiant) + '</strong>' +
     ' \u00a0\u00b7\u00a0 ' + dateStr +
     (commonSession.classe ? ' \u00a0\u00b7\u00a0 ' + escHtml(commonSession.classe) : '') +
+    (ordreLabel ? ' \u00a0\u00b7\u00a0 <strong>' + ordreLabel + '</strong>' : '') +
     (diagList ? '<br>' + escHtml(diagList) : '');
 
   // Initialize T2 session + grid (once)
