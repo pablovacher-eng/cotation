@@ -2397,7 +2397,7 @@ function buildFluenceSheetData(key) {
   const headers = [
     'etat_passation', 'identifiant', 'prenom_enfant', 'date_naissance', 'classe', 'mail_poppins',
     'dyslexie', 'dysortographie', 'dyscalculie', 'dysphasie', 'dyspraxie', 'tdah', 'autres_troubles',
-    'date', 'texte',
+    'date', 'texte', 'ordre_textes',
     'total_mots', 'mots_lus', 'mots_non_lus', 'mots_corrects',
     'erreur', 'oubli', 'auto_correction',
     'dernier_mot_lu', 'dernier_mot_lu_position', 'dernier_mot_lu_paragraphe',
@@ -2413,7 +2413,7 @@ function buildFluenceSheetData(key) {
     commonSession.diagDyspraxie ? 1 : 0,
     commonSession.diagTdah      ? 1 : 0,
     commonSession.diagAutres    || '',
-    commonSession.date, TEXTS[key].title,
+    commonSession.date, TEXTS[key].title, commonSession.ordreTextes || '',
     res.totalWords, global.read, global.nbNonLu, global.correct,
     global.nbErreur, global.nbOubli, global.nbAuto,
     lastLu ? lastLu.display : '', res.lastLuIdx !== null ? res.lastLuIdx + 1 : '', lastLu ? 'Card ' + (lastLu.paraIndex + 1) : '',
@@ -2439,14 +2439,14 @@ function buildT2SheetData() {
   const obs     = (document.getElementById('t2-obs-cliniques') || {}).value || '';
 
   const headers = [
-    'etat_passation', 'identifiant', 'prenom_enfant', 'date_naissance', 'classe', 'mail_poppins', 'date',
+    'etat_passation', 'identifiant', 'prenom_enfant', 'date_naissance', 'classe', 'mail_poppins', 'date', 'ordre_textes',
     'dyslexie', 'dysortographie', 'dyscalculie', 'dysphasie', 'dyspraxie', 'tdah', 'autres_troubles',
     'DML_numero', 'DML_mot', 'MO', 'NML', 'ME', 'NMCL', 'pct_corrects_lus',
     'nb_autocorrections', 'qualite_lecture', 'observations_cliniques',
   ];
   const values = [
     t2ResultState.valid ? 'valide' : 'invalide',
-    commonSession.identifiant || '', commonSession.childName || '', commonSession.childDob || '', commonSession.classe || '', commonSession.poppinsMail || '', commonSession.date,
+    commonSession.identifiant || '', commonSession.childName || '', commonSession.childDob || '', commonSession.classe || '', commonSession.poppinsMail || '', commonSession.date, commonSession.ordreTextes || '',
     commonSession.diagDyslexie  ? 1 : 0,
     commonSession.diagDysortho  ? 1 : 0,
     commonSession.diagDyscalc   ? 1 : 0,
