@@ -99,6 +99,17 @@
 
     .btn-start:hover { background: #1a252f; }
 
+    .ordre-toggle { display: flex; gap: 10px; margin-top: 2px; }
+    .ordre-btn {
+      flex: 1; padding: 10px 8px; border: 2px solid #dde1e7;
+      border-radius: 6px; background: white; font-size: 0.95em;
+      font-family: inherit; color: #555; cursor: pointer;
+      transition: border-color 0.15s, background 0.15s, color 0.15s;
+      text-align: center; font-weight: 500;
+    }
+    .ordre-btn:hover { border-color: #2c3e50; color: #2c3e50; }
+    .ordre-btn.selected { border-color: #2c3e50; background: #2c3e50; color: white; font-weight: 700; }
+
     .diag-grid {
       display: grid;
       grid-template-columns: 1fr 1fr 1fr;
@@ -850,6 +861,14 @@
           </div>
         </div>
 
+        <div class="form-group">
+          <label>Ordre des textes</label>
+          <div class="ordre-toggle">
+            <button type="button" class="ordre-btn" id="ordre-AB" onclick="selectOrdre('AB')">Texte A → Texte B</button>
+            <button type="button" class="ordre-btn" id="ordre-BA" onclick="selectOrdre('BA')">Texte B → Texte A</button>
+          </div>
+        </div>
+
         <div class="form-group" style="margin-top:4px">
           <label>Diagnostics</label>
           <div class="diag-grid">
@@ -1241,6 +1260,11 @@ function switchMainTab(name) {
 // ══════════════════════════════════════════════════════════════════════
 
 // Pre-fill date with today
+function selectOrdre(val) {
+  document.getElementById('ordre-AB').classList.toggle('selected', val === 'AB');
+  document.getElementById('ordre-BA').classList.toggle('selected', val === 'BA');
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   const today = new Date();
   const dd = String(today.getDate()).padStart(2, '0');
@@ -1265,6 +1289,7 @@ function goToMain(e) {
     diagDyspraxie: document.getElementById('diag-dyspraxie').checked,
     diagTdah     : document.getElementById('diag-tdah').checked,
     diagAutres   : document.getElementById('diag-autres').checked ? document.getElementById('diag-autres-text').value.trim() : '',
+    ordreTextes  : document.querySelector('.ordre-btn.selected')?.id.replace('ordre-','') || '',
   };
 
   // Update persistent header
