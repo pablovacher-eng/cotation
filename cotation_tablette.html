@@ -278,7 +278,13 @@
 
     .word:not([data-type]):hover { background: #fef9e7; }
 
-    /* Marqueurs temporels (double clic) */
+    /* Appui long en cours */
+    .word.pressing {
+      outline: 2px dashed #8e44ad;
+      transition: outline 0.1s;
+    }
+
+    /* Marqueurs temporels (appui long) */
     .word[data-last_lu] {
       outline: 2px solid #8e44ad;
       outline-offset: 2px;
@@ -1390,6 +1396,8 @@ function finFluenceCotation() {
 
   document.getElementById('fluence-cotation').classList.add('hidden');
   document.getElementById('fluence-select').classList.remove('hidden');
+
+  exportXLSX();
 }
 
 // ══════════════════════════════════════════════════════════════════════
@@ -1518,7 +1526,19 @@ function handleDoubleClick(span, idx) {
       const s = document.querySelector('.word[data-token-index="' + i + '"]');
       if (s) markWord(s, i, 'non_lu');
     }
+    // Sauvegarde automatique
+    autoSaveXLSX();
   }
+}
+
+function autoSaveXLSX() {
+  const key = activeFluenceKey;
+  if (!key) return;
+  // Snapshot de l'état courant sans marquer done ni quitter la cotation
+  fluenceResults[key].tokens     = wordTokens.map(t => ({ ...t }));
+  fluenceResults[key].totalWords = totalWords;
+  fluenceResults[key].lastLuIdx  = lastLuIdx;
+  exportXLSX([key]);
 }
 
 function onWordEnter(e) {
@@ -1578,8 +1598,8 @@ window.addEventListener('scroll', () => {
 }, { passive: true });
 
 // ── Support tactile (iPad / tablettes) ──────────────────────────
-let _fluenceTapTime = 0;
-let _fluenceTapTarget = null;
+let _longPressTimer = null;
+let _longPressData  = null;
 let _t2TapTime = 0;
 let _t2TapTarget = null;
 
@@ -1595,24 +1615,16 @@ document.addEventListener('touchstart', e => {
     const cx  = e.touches[0].clientX;
     const cy  = e.touches[0].clientY;
     const idx = parseInt(fluenceWord.dataset.tokenIndex, 10);
-    const now = Date.now();
-    const dbl = (now - _fluenceTapTime < 300) && _fluenceTapTarget === fluenceWord;
-    _fluenceTapTime   = now;
-    _fluenceTapTarget = fluenceWord;
-    if (dbl) {
+    // Appui long (600ms) → marque le dernier mot lu
+    fluenceWord.classList.add('pressing');
+    _longPressData  = { span: fluenceWord, idx, cx, cy };
+    _longPressTimer = setTimeout(() => {
+      _longPressTimer = null;
+      _longPressData  = null;
+      fluenceWord.classList.remove('pressing');
       popup.style.display = 'none';
       handleDoubleClick(fluenceWord, idx);
-      return;
-    }
-    if (popup.style.display !== 'none' && popTarget === fluenceWord) {
-      if (wordTokens[idx].type !== null) markWord(fluenceWord, idx, null);
-      popup.style.display = 'none';
-      popTarget = null;
-    } else {
-      clearTimeout(hideTimer);
-      popTarget = fluenceWord;
-      positionPopup(fluenceWord, cx, cy);
-    }
+    }, 600);
     return;
   }
 
@@ -1649,6 +1661,43 @@ document.addEventListener('touchstart', e => {
   if (!popup.contains(e.target))   popup.style.display = 'none';
   if (!t2popEl.contains(e.target)) t2popEl.style.display = 'none';
 }, { passive: false });
+
+document.addEventListener('touchend', e => {
+  if (!_longPressData) return;
+  clearTimeout(_longPressTimer);
+  _longPressTimer = null;
+  const { span, idx, cx, cy } = _longPressData;
+  _longPressData = null;
+  span.classList.remove('pressing');
+  // Tap court → comportement normal (affiche/masque le popup)
+  if (popup.style.display !== 'none' && popTarget === span) {
+    if (wordTokens[idx].type !== null) markWord(span, idx, null);
+    popup.style.display = 'none';
+    popTarget = null;
+  } else {
+    clearTimeout(hideTimer);
+    popTarget = span;
+    positionPopup(span, cx, cy);
+  }
+}, { passive: false });
+
+document.addEventListener('touchcancel', () => {
+  if (_longPressData) {
+    clearTimeout(_longPressTimer);
+    _longPressTimer = null;
+    _longPressData.span.classList.remove('pressing');
+    _longPressData = null;
+  }
+});
+
+document.addEventListener('touchmove', e => {
+  if (_longPressData) {
+    clearTimeout(_longPressTimer);
+    _longPressTimer = null;
+    _longPressData.span.classList.remove('pressing');
+    _longPressData = null;
+  }
+}, { passive: true });
 
 // Repositionner les popups lors d'un zoom/scroll du viewport visuel (iPad)
 if (window.visualViewport) {
@@ -2460,7 +2509,7 @@ function buildT2SheetData() {
   return [headers, values];
 }
 
-function exportXLSX() {
+function exportXLSX(forceKeys = []) {
   if (typeof XLSX === 'undefined') {
     alert('La biblioth\u00e8que XLSX n\'est pas disponible. V\u00e9rifiez votre connexion internet.');
     return;
@@ -2468,7 +2517,7 @@ function exportXLSX() {
   const wb = XLSX.utils.book_new();
 
   ['A', 'B'].forEach(key => {
-    if (fluenceResults[key].done) {
+    if (fluenceResults[key].done || forceKeys.includes(key)) {
       const ws = XLSX.utils.aoa_to_sheet(buildFluenceSheetData(key));
       XLSX.utils.book_append_sheet(wb, ws, 'Fluence ' + key);
     }
@@ -2480,7 +2529,7 @@ function exportXLSX() {
   }
 
   if (wb.SheetNames.length === 0) {
-    alert('Aucun test n\'a \u00e9t\u00e9 pass\u00e9.');
+    if (forceKeys.length === 0) alert('Aucun test n\'a \u00e9t\u00e9 pass\u00e9.');
     return;
   }
 
