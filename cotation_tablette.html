@@ -1533,10 +1533,14 @@ function handleDoubleClick(span, idx) {
 function autoSaveXLSX() {
   const key = activeFluenceKey;
   if (!key) return;
-  // Snapshot de l'état courant sans marquer done ni quitter la cotation
+  fluenceResults[key].done       = true;
   fluenceResults[key].tokens     = wordTokens.map(t => ({ ...t }));
   fluenceResults[key].totalWords = totalWords;
   fluenceResults[key].lastLuIdx  = lastLuIdx;
+  // Met à jour les badges pour que l'écran de résultats affiche les données
+  document.getElementById('card-' + key + '-badge').classList.remove('hidden');
+  document.getElementById('card-' + key).classList.add('done');
+  document.getElementById('fluence-tab-badge').classList.remove('hidden');
 }
 
 function onWordEnter(e) {
