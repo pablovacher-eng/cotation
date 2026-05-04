@@ -1721,17 +1721,26 @@ document.addEventListener('touchcancel', () => {
 });
 
 document.addEventListener('touchmove', e => {
+  const t = e.touches[0];
   if (_longPressData) {
-    clearTimeout(_longPressTimer);
-    _longPressTimer = null;
-    _longPressData.span.classList.remove('pressing');
-    _longPressData = null;
+    const dx = t.clientX - _longPressData.cx;
+    const dy = t.clientY - _longPressData.cy;
+    if (dx * dx + dy * dy > 100) { // >10px
+      clearTimeout(_longPressTimer);
+      _longPressTimer = null;
+      _longPressData.span.classList.remove('pressing');
+      _longPressData = null;
+    }
   }
   if (_t2LongPressData) {
-    clearTimeout(_t2LongPressTimer);
-    _t2LongPressTimer = null;
-    _t2LongPressData.span.classList.remove('pressing');
-    _t2LongPressData = null;
+    const dx = t.clientX - _t2LongPressData.cx;
+    const dy = t.clientY - _t2LongPressData.cy;
+    if (dx * dx + dy * dy > 100) { // >10px
+      clearTimeout(_t2LongPressTimer);
+      _t2LongPressTimer = null;
+      _t2LongPressData.span.classList.remove('pressing');
+      _t2LongPressData = null;
+    }
   }
 }, { passive: true });
 
