@@ -543,6 +543,12 @@
       outline: 2px dashed #8e44ad;
       transition: outline 0.1s;
     }
+
+    /* Borne de début de saut en attente */
+    .t2-word[data-skip-start] {
+      outline: 2px dashed #e67e22;
+      outline-offset: 1px;
+    }
     .t2-word.t2-blue-ul   { text-decoration: underline; text-decoration-color: #2980b9; text-decoration-thickness: 2px; text-underline-offset: 3px; }
     .t2-word.t2-blue-box  { outline: 2px solid #2980b9; outline-offset: 2px; border-radius: 3px; }
 
@@ -1329,7 +1335,8 @@ function goToMain(e) {
   // Initialize T2 session + grid (once)
   t2Session    = { ...commonSession };
   t2WordStates = EVAL2M_WORDS.map(() => ({ type: null }));
-  t2DML        = null;
+  t2DML         = null;
+  t2SkipPending = null;
   t2QualLecture = null;
   document.querySelectorAll('.qualite-btn').forEach(b => b.classList.remove('selected'));
   document.getElementById('t2-obs-cliniques').value = '';
@@ -1610,6 +1617,10 @@ let _longPressTimer = null;
 let _longPressData  = null;
 let _t2LongPressTimer = null;
 let _t2LongPressData  = null;
+let _t2TapTimer       = null;
+let _t2LastTapTime    = 0;
+let _t2LastTapTarget  = null;
+let t2SkipPending     = null; // idx du mot borne-début en attente
 
 document.addEventListener('touchstart', e => {
   const fluenceWord = e.target.closest('.word');
@@ -1693,14 +1704,33 @@ document.addEventListener('touchend', e => {
     _t2LongPressData = null;
     span.classList.remove('pressing');
     const t2popEl = document.getElementById('t2-popup');
-    if (t2popEl.style.display !== 'none' && t2PopTarget === span) {
-      t2popEl.style.display = 'none';
-      t2PopTarget = null;
+
+    const now = Date.now();
+    const isDbl = (now - _t2LastTapTime < 350) && _t2LastTapTarget === span;
+    _t2LastTapTime   = now;
+    _t2LastTapTarget = span;
+
+    if (isDbl) {
+      // Double-tap : borne de saut — annule le tap simple en attente
+      clearTimeout(_t2TapTimer);
+      _t2TapTimer      = null;
+      _t2LastTapTime   = 0;
+      _t2LastTapTarget = null;
+      handleT2Skip(span, idx);
     } else {
-      clearTimeout(t2HideTimer);
-      if (t2WordStates[idx].type === null) setT2WordType(span, idx, 'erreur');
-      t2PopTarget = span;
-      positionT2Popup(span, cx, cy);
+      // Tap simple : différé pour laisser le temps d'un éventuel 2e tap
+      _t2TapTimer = setTimeout(() => {
+        _t2TapTimer = null;
+        if (t2popEl.style.display !== 'none' && t2PopTarget === span) {
+          t2popEl.style.display = 'none';
+          t2PopTarget = null;
+        } else {
+          clearTimeout(t2HideTimer);
+          if (t2WordStates[idx].type === null) setT2WordType(span, idx, 'erreur');
+          t2PopTarget = span;
+          positionT2Popup(span, cx, cy);
+        }
+      }, 300);
     }
   }
 }, { passive: false });
@@ -1901,6 +1931,9 @@ function nouvelleSession() {
   // Reset T2
   t2ResultState.done  = false;
   t2ResultState.valid = true;
+  t2SkipPending = null;
+  clearTimeout(_t2TapTimer);
+  _t2TapTimer = null;
 
   // Reset form
   document.getElementById('identifiant').value         = '';
@@ -2147,7 +2180,7 @@ function onT2WordClick(e) {
   if (span.classList.contains('not-reached')) return;
 
   if (e.detail === 2) {
-    handleT2DMLClick(span, idx);
+    handleT2Skip(span, idx);
   } else {
     t2ClickTimer = setTimeout(() => {
       if (t2WordStates[idx].type === null) setT2WordType(span, idx, 'erreur');
@@ -2177,6 +2210,30 @@ function handleT2DMLClick(span, idx) {
     autoSaveT2();
   }
   updateT2Score();
+}
+
+function handleT2Skip(span, idx) {
+  if (t2SkipPending === null) {
+    // 1re borne : dernier mot lu avant le saut
+    t2SkipPending      = idx;
+    span.dataset.skipStart = '1';
+  } else if (t2SkipPending === idx) {
+    // Même mot : annule la borne
+    delete span.dataset.skipStart;
+    t2SkipPending = null;
+  } else {
+    // 2e borne : marque tous les mots entre les deux bornes comme oubli
+    const start     = Math.min(t2SkipPending, idx);
+    const end       = Math.max(t2SkipPending, idx);
+    const startSpan = document.querySelector('.t2-word[data-t2-index="' + t2SkipPending + '"]');
+    if (startSpan) delete startSpan.dataset.skipStart;
+    for (let i = start + 1; i < end; i++) {
+      const s = document.querySelector('.t2-word[data-t2-index="' + i + '"]');
+      if (s) setT2WordType(s, i, 'oubli');
+    }
+    t2SkipPending = null;
+    updateT2Score();
+  }
 }
 
 function autoSaveT2() {
