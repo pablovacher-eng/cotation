@@ -537,6 +537,12 @@
     .t2-word[data-type="oubli"]  { background:#fdebd0; color:#d35400; }
     .t2-word[data-type="auto"]   { background:#d5f5e3; color:#1e8449; }
     .t2-word[data-type="non_lu"] { background:#ecf0f1; color:#95a5a6; text-decoration:line-through; }
+
+    /* Appui long en cours (EVAL2M) */
+    .t2-word.pressing {
+      outline: 2px dashed #8e44ad;
+      transition: outline 0.1s;
+    }
     .t2-word.t2-blue-ul   { text-decoration: underline; text-decoration-color: #2980b9; text-decoration-thickness: 2px; text-underline-offset: 3px; }
     .t2-word.t2-blue-box  { outline: 2px solid #2980b9; outline-offset: 2px; border-radius: 3px; }
 
@@ -1602,8 +1608,8 @@ window.addEventListener('scroll', () => {
 // ── Support tactile (iPad / tablettes) ──────────────────────────
 let _longPressTimer = null;
 let _longPressData  = null;
-let _t2TapTime = 0;
-let _t2TapTarget = null;
+let _t2LongPressTimer = null;
+let _t2LongPressData  = null;
 
 document.addEventListener('touchstart', e => {
   const fluenceWord = e.target.closest('.word');
@@ -1638,24 +1644,16 @@ document.addEventListener('touchstart', e => {
     const cx  = e.touches[0].clientX;
     const cy  = e.touches[0].clientY;
     const idx = parseInt(t2Word.dataset.t2Index, 10);
-    const now = Date.now();
-    const dbl = (now - _t2TapTime < 300) && _t2TapTarget === t2Word;
-    _t2TapTime   = now;
-    _t2TapTarget = t2Word;
-    if (dbl) {
+    // Appui long (600ms) → marque le dernier mot lu
+    t2Word.classList.add('pressing');
+    _t2LongPressData  = { span: t2Word, idx, cx, cy };
+    _t2LongPressTimer = setTimeout(() => {
+      _t2LongPressTimer = null;
+      _t2LongPressData  = null;
+      t2Word.classList.remove('pressing');
       t2popEl.style.display = 'none';
       handleT2DMLClick(t2Word, idx);
-      return;
-    }
-    if (t2popEl.style.display !== 'none' && t2PopTarget === t2Word) {
-      t2popEl.style.display = 'none';
-      t2PopTarget = null;
-    } else {
-      clearTimeout(t2HideTimer);
-      if (t2WordStates[idx].type === null) setT2WordType(t2Word, idx, 'erreur');
-      t2PopTarget = t2Word;
-      positionT2Popup(t2Word, cx, cy);
-    }
+    }, 600);
     return;
   }
 
@@ -1665,21 +1663,40 @@ document.addEventListener('touchstart', e => {
 }, { passive: false });
 
 document.addEventListener('touchend', e => {
-  if (!_longPressData) return;
-  clearTimeout(_longPressTimer);
-  _longPressTimer = null;
-  const { span, idx, cx, cy } = _longPressData;
-  _longPressData = null;
-  span.classList.remove('pressing');
-  // Tap court → comportement normal (affiche/masque le popup)
-  if (popup.style.display !== 'none' && popTarget === span) {
-    if (wordTokens[idx].type !== null) markWord(span, idx, null);
-    popup.style.display = 'none';
-    popTarget = null;
-  } else {
-    clearTimeout(hideTimer);
-    popTarget = span;
-    positionPopup(span, cx, cy);
+  // ── Fluence ──
+  if (_longPressData) {
+    clearTimeout(_longPressTimer);
+    _longPressTimer = null;
+    const { span, idx, cx, cy } = _longPressData;
+    _longPressData = null;
+    span.classList.remove('pressing');
+    if (popup.style.display !== 'none' && popTarget === span) {
+      if (wordTokens[idx].type !== null) markWord(span, idx, null);
+      popup.style.display = 'none';
+      popTarget = null;
+    } else {
+      clearTimeout(hideTimer);
+      popTarget = span;
+      positionPopup(span, cx, cy);
+    }
+  }
+  // ── EVAL2M ──
+  if (_t2LongPressData) {
+    clearTimeout(_t2LongPressTimer);
+    _t2LongPressTimer = null;
+    const { span, idx, cx, cy } = _t2LongPressData;
+    _t2LongPressData = null;
+    span.classList.remove('pressing');
+    const t2popEl = document.getElementById('t2-popup');
+    if (t2popEl.style.display !== 'none' && t2PopTarget === span) {
+      t2popEl.style.display = 'none';
+      t2PopTarget = null;
+    } else {
+      clearTimeout(t2HideTimer);
+      if (t2WordStates[idx].type === null) setT2WordType(span, idx, 'erreur');
+      t2PopTarget = span;
+      positionT2Popup(span, cx, cy);
+    }
   }
 }, { passive: false });
 
@@ -1690,6 +1707,12 @@ document.addEventListener('touchcancel', () => {
     _longPressData.span.classList.remove('pressing');
     _longPressData = null;
   }
+  if (_t2LongPressData) {
+    clearTimeout(_t2LongPressTimer);
+    _t2LongPressTimer = null;
+    _t2LongPressData.span.classList.remove('pressing');
+    _t2LongPressData = null;
+  }
 });
 
 document.addEventListener('touchmove', e => {
@@ -1698,6 +1721,12 @@ document.addEventListener('touchmove', e => {
     _longPressTimer = null;
     _longPressData.span.classList.remove('pressing');
     _longPressData = null;
+  }
+  if (_t2LongPressData) {
+    clearTimeout(_t2LongPressTimer);
+    _t2LongPressTimer = null;
+    _t2LongPressData.span.classList.remove('pressing');
+    _t2LongPressData = null;
   }
 }, { passive: true });
 
@@ -2131,8 +2160,14 @@ function handleT2DMLClick(span, idx) {
       const i = parseInt(s.dataset.t2Index, 10);
       if (i > idx) s.classList.add('not-reached');
     });
+    autoSaveT2();
   }
   updateT2Score();
+}
+
+function autoSaveT2() {
+  t2ResultState.done = true;
+  document.getElementById('t2-tab-badge').classList.remove('hidden');
 }
 
 function onT2WordEnter(e) {
