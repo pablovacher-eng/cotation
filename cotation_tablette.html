@@ -1939,7 +1939,8 @@ function nouvelleSession() {
   document.getElementById('identifiant').value         = '';
   document.getElementById('child-name').value         = '';
   document.getElementById('child-dob').value          = '';
-  document.getElementById('session-date').value       = '';
+  const _t = new Date();
+  document.getElementById('session-date').value = String(_t.getDate()).padStart(2,'0') + '/' + String(_t.getMonth()+1).padStart(2,'0') + '/' + _t.getFullYear();
   document.getElementById('child-classe').value       = '';
   document.getElementById('poppins-mail').value       = '';
   document.getElementById('diag-dyslexie').checked   = false;
