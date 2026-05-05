@@ -2618,6 +2618,21 @@ function buildT2SheetData() {
   return [headers, values];
 }
 
+function buildFluenceWordsSheetData(key) {
+  const tokens = fluenceResults[key].tokens || [];
+  const typeLabel = {
+    'erreur': 'erreur',
+    'oubli': 'oublis',
+    'auto': 'auto-correction',
+    'non_lu': 'non lu',
+  };
+  const rows = [['mot', 'categorisation']];
+  tokens.forEach(t => {
+    rows.push([t.display, typeLabel[t.type] || 'correct']);
+  });
+  return rows;
+}
+
 function exportXLSX(forceKeys = []) {
   if (typeof XLSX === 'undefined') {
     alert('La biblioth\u00e8que XLSX n\'est pas disponible. V\u00e9rifiez votre connexion internet.');
@@ -2636,6 +2651,13 @@ function exportXLSX(forceKeys = []) {
     const ws = XLSX.utils.aoa_to_sheet(buildT2SheetData());
     XLSX.utils.book_append_sheet(wb, ws, 'EVAL2M');
   }
+
+  ['A', 'B'].forEach(key => {
+    if (fluenceResults[key].done || forceKeys.includes(key)) {
+      const ws = XLSX.utils.aoa_to_sheet(buildFluenceWordsSheetData(key));
+      XLSX.utils.book_append_sheet(wb, ws, 'Mots Fluence ' + key);
+    }
+  });
 
   if (wb.SheetNames.length === 0) {
     if (forceKeys.length === 0) alert('Aucun test n\'a \u00e9t\u00e9 pass\u00e9.');
